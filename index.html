@@ -119,11 +119,19 @@ a:hover{opacity:0.8}
 .error-banner{display:none;background:#FDF2F2;border:1px solid #E8BFBF;border-radius:3px;padding:14px 18px;margin-bottom:24px;font-family:var(--sans);font-size:13px;color:var(--terracotta);line-height:1.5}
 .error-banner.visible{display:block}
 
-/* Success State */
-.success-message{display:none;text-align:center;padding:60px 24px}
-.success-message.visible{display:block}
-.success-message h2{font-family:var(--serif);font-size:36px;font-style:italic;font-weight:400;margin-bottom:20px}
-.success-message p{font-family:var(--sans);font-size:15px;color:var(--charcoal);opacity:0.8;line-height:1.7;max-width:480px;margin:0 auto}
+/* Success Modal Overlay */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(26,26,26,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:24px}
+.modal-overlay.visible{display:flex}
+.modal-card{background:#FFFFFF;border-radius:6px;padding:60px 48px;max-width:520px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);animation:modalIn 0.4s ease forwards;position:relative}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-close{position:absolute;top:16px;right:20px;font-size:24px;color:var(--shadow);cursor:pointer;background:none;border:none;font-family:var(--sans);transition:color 0.2s}
+.modal-close:hover{color:var(--charcoal)}
+.modal-check{width:56px;height:56px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;margin:0 auto 28px}
+.modal-check::after{content:'';display:block;width:14px;height:22px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg);margin-top:-4px}
+.modal-card h2{font-family:var(--serif);font-size:36px;font-style:italic;font-weight:400;color:var(--charcoal);margin-bottom:16px}
+.modal-card p{font-family:var(--sans);font-size:15px;color:var(--charcoal);opacity:0.75;line-height:1.7;max-width:400px;margin:0 auto 28px}
+.modal-card .modal-cta{display:inline-block;font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream);background:var(--charcoal);border:none;border-radius:3px;padding:14px 36px;cursor:pointer;transition:background 0.25s;text-decoration:none}
+.modal-card .modal-cta:hover{background:#2A2A2A;opacity:1}
 
 /* Footer */
 .footer{border-top:1px solid var(--shadow);text-align:center;padding:40px 24px}
@@ -311,12 +319,19 @@ a:hover{opacity:0.8}
       <button type="submit" class="btn-submit" id="submitBtn">Submit Application</button>
     </form>
 
-    <div class="success-message" id="successMessage">
-      <h2>Thank you</h2>
-      <p>We've received your application. If there's a fit, we'll be in touch within the next week or two. In the meantime, feel free to explore our world at <a href="https://bijouxluxo.com">bijouxluxo.com</a></p>
-    </div>
   </div>
 </section>
+
+<!-- Success Modal -->
+<div class="modal-overlay" id="successModal">
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose">&times;</button>
+    <div class="modal-check"></div>
+    <h2>Thank you</h2>
+    <p>We've received your application. If there's a fit, we'll be in touch within the next week or two.</p>
+    <a href="https://bijouxluxo.com" class="modal-cta">Explore Bijoux Luxo</a>
+  </div>
+</div>
 
 <!-- Footer -->
 <footer class="footer">
@@ -329,7 +344,8 @@ a:hover{opacity:0.8}
   const form = document.getElementById('castingForm');
   const errorBanner = document.getElementById('errorBanner');
   const submitBtn = document.getElementById('submitBtn');
-  const successMessage = document.getElementById('successMessage');
+  const successModal = document.getElementById('successModal');
+  const modalClose = document.getElementById('modalClose');
 
   /* ── File Upload: Photos ── */
   const photoZone = document.getElementById('photoZone');
@@ -453,10 +469,33 @@ a:hover{opacity:0.8}
       });
 
       if(resp.ok){
-        form.style.display = 'none';
+        form.reset();
+        photoFiles = []; videoFiles = [];
+        photoList.innerHTML = ''; videoList.innerHTML = '';
         errorBanner.classList.remove('visible');
-        successMessage.classList.add('visible');
-        document.getElementById('apply').scrollIntoView({behavior:'smooth'});
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Application';
+
+        // Show success modal
+        successModal.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+
+        // Fire /thank-you virtual pageview for pixel tracking
+        if(window.history && window.history.pushState){
+          window.history.pushState({}, 'Thank You', '/thank-you');
+        }
+        // GA4 / gtag
+        if(typeof gtag === 'function'){
+          gtag('event', 'page_view', {page_path: '/thank-you', page_title: 'Thank You'});
+        }
+        // Meta Pixel
+        if(typeof fbq === 'function'){
+          fbq('track', 'Lead');
+          fbq('track', 'PageView');
+        }
+        // dataLayer for GTM
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({event: 'form_submission', page_path: '/thank-you'});
       } else {
         throw new Error('Server error');
       }
@@ -465,6 +504,20 @@ a:hover{opacity:0.8}
       errorBanner.classList.add('visible');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit Application';
+    }
+  });
+
+  /* ── Modal Close ── */
+  modalClose.addEventListener('click', function(){
+    successModal.classList.remove('visible');
+    document.body.style.overflow = '';
+    if(window.history && window.history.pushState){
+      window.history.pushState({}, 'Casting Call', '/');
+    }
+  });
+  successModal.addEventListener('click', function(e){
+    if(e.target === successModal){
+      modalClose.click();
     }
   });
 })();
