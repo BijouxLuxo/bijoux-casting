@@ -289,7 +289,7 @@ a:hover{opacity:0.8}
         <div class="upload-zone" id="photoZone">
           <div class="upload-icon">&#128247;</div>
           <div class="upload-text"><span class="gold-link">Click to upload</span> or drag photos here</div>
-          <div class="upload-hint">2–3 recent photos. Casual is fine; we want to see the real you. (JPG, PNG, max 10MB each)</div>
+          <div class="upload-hint">2–3 recent photos. Casual is fine; we want to see the real you. (JPG, PNG, max 25MB each)</div>
           <input type="file" name="photos" id="photoInput" multiple accept="image/*" style="display:none">
         </div>
         <div class="file-list" id="photoList"></div>
@@ -300,7 +300,7 @@ a:hover{opacity:0.8}
         <div class="upload-zone" id="videoZone">
           <div class="upload-icon">&#127916;</div>
           <div class="upload-text"><span class="gold-link">Click to upload</span> or drag video here</div>
-          <div class="upload-hint">15–30 seconds of natural hand movement. Phone quality is perfect. (MP4, MOV, max 50MB)</div>
+          <div class="upload-hint">15–30 seconds of natural hand movement. Phone quality is perfect. (MP4, MOV, max 25MB)</div>
           <input type="file" name="video" id="videoInput" accept="video/*" style="display:none">
         </div>
         <div class="file-list" id="videoList"></div>
@@ -388,8 +388,22 @@ a:hover{opacity:0.8}
     });
   }
 
+  var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
   function addFiles(newFiles, fileArray, listEl, type){
-    newFiles.forEach(function(f){ fileArray.push(f); });
+    var rejected = [];
+    newFiles.forEach(function(f){
+      if(f.size > MAX_FILE_SIZE){
+        rejected.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+      } else {
+        fileArray.push(f);
+      }
+    });
+    if(rejected.length > 0){
+      errorBanner.textContent = 'These files exceed 25MB and were not added: ' + rejected.join(', ') + '. Try trimming the video or reducing the resolution.';
+      errorBanner.classList.add('visible');
+      errorBanner.scrollIntoView({behavior:'smooth',block:'center'});
+    }
     renderFileList(fileArray, listEl, type);
   }
 
